@@ -1,3 +1,7 @@
+// The paper: Inverse Kinematics Techniques in Computer Graphics: A Survey by A. Aristidou, J.Lasenby, Y. Chrysanthou1 and A. Shamir
+// Plus a video titled Learn Inverse Kinematics the Simple Way by Benjamin Blodgett --> https://youtu.be/wgpgNLEEpeY
+// This video helped a ton
+
 use nannou::prelude::*;
 use nannou_egui::{self, egui::{self, Color32, Rounding, Stroke, Visuals}, Egui};
 
@@ -154,6 +158,7 @@ fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event:
     model.egui.handle_raw_event(event);
 }
 
+// Analytic solution of a two-link kinematic chain;
 fn solve_ik_simple(distance: f32, length: f32, angle: f32) -> [Vec2; 3] {
     // Theta_1, i believe, is the angle between the first arm and the horizontal axis
     // ain't sure since i need to sum theta with the arm_angle
