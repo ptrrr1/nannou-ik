@@ -5,13 +5,65 @@
 use nannou::prelude::*;
 use nannou_egui::{self, egui::{self, Color32, Rounding, Stroke, Visuals}, Egui};
 
-#[derive(Debug)]
-struct Settings {
-    arm_length: f32,
-    arm_angle: f32,
-    start_to_end_distance: f32,
+#[derive(Debug, Clone, Copy)]
+enum Solver {
+    Analytic(AnalyticTwoLink),
+}
+
+#[derive(Debug, Clone, Copy)]
+struct AnalyticTwoLink {
+    angle: f32,
+    first_arm_length: f32,
+    second_arm_length: f32,
+    first_to_last_dist: f32,
     points: [Vec2; 3],
-    target_mouse: bool
+}
+
+impl AnalyticTwoLink {
+    fn new(angle: f32, f_len: f32, s_len: f32) -> AnalyticTwoLink {
+        AnalyticTwoLink {
+            angle: angle,
+            first_arm_length: f_len, 
+            second_arm_length: s_len, 
+            first_to_last_dist: f_len + s_len, 
+            points: [
+                Vec2::ZERO, 
+                Vec2::new(angle.cos() * f_len, angle.sin() * f_len), 
+                Vec2::new(angle.cos() * (f_len + s_len), angle.sin() * (f_len + s_len))
+            ]
+        }
+    }
+
+    fn two_link_solver(&mut self) {
+        // Prevent an error when the start_to_end_distance is greater than the arm_length, making the
+        // theta_1 result in NaN.
+        // I do believe this happens because though i've changed the slider, the change only takes effect
+        // in the next frame. Plus, it can't solve when distance is greater than sum of arm lengths
+        if self.first_to_last_dist > self.first_arm_length + self.second_arm_length {
+            self.first_to_last_dist = self.first_arm_length + self.second_arm_length;
+        } 
+        else if self.first_to_last_dist < self.first_arm_length - self.second_arm_length {
+            self.first_to_last_dist = self.first_arm_length - self.second_arm_length;
+        }
+        // Theta_1, i believe, is the angle between the first arm and angle
+        // The sum comes from the fact that "angle" is the angle between the horizontal axis and the end effector
+        // Law of cosines
+        let mut numerator = self.first_arm_length.powi(2) + self.first_to_last_dist.powi(2) - self.second_arm_length.powi(2);
+        let denominator = 2. * self.first_arm_length * self.first_to_last_dist;
+        while numerator.abs() > denominator {
+             numerator = denominator - numerator;
+        }
+        let theta_1 = (numerator / denominator).acos();
+        println!("{:?} / {:?}", numerator, denominator);
+
+        // First Joint
+        let first_p = Vec2::new((theta_1 + self.angle).cos() * self.first_arm_length, (theta_1 + self.angle).sin() * self.first_arm_length);
+
+        // End effector
+        let second_p = Vec2::new(self.angle.cos() * self.first_to_last_dist, self.angle.sin() * self.first_to_last_dist);
+
+        self.points = [Vec2::ZERO, first_p, second_p]
+    }
 }
 
 struct Model {
@@ -19,6 +71,12 @@ struct Model {
     clear_color: Hsl,
     egui: Egui,
     settings: Settings,
+}
+
+#[derive(Debug)]
+struct Settings {
+    solver: Solver,
+    target_mouse: bool,
 }
 
 fn main() {
@@ -44,10 +102,7 @@ fn model(_app: &App) -> Model {
     let egui = Egui::from_window(&window);
 
     let settings = Settings {
-        arm_length: 128.,
-        arm_angle: 0.,
-        start_to_end_distance: 256.,
-        points: [Vec2::ZERO, Vec2::new(128., 0.), Vec2::new(256., 0.)],
+        solver: Solver::Analytic(AnalyticTwoLink::new(0., 128., 128.)),
         target_mouse: false,
     };
 
@@ -66,10 +121,14 @@ fn view(_app: &App, _model: &Model, _frame: Frame) {
     draw.background().color(_model.clear_color);
 
     //
-    draw.polyline()
-        .weight(8.0)
-        .color(PLUM)
-        .points(_model.settings.points);
+    match &_model.settings.solver {
+        Solver::Analytic(two_link_chain) => {
+            draw.polyline()
+            .weight(8.0)
+            .color(PLUM)
+            .points(two_link_chain.points);
+            }
+    };
 
     // Draw to frame
     draw.to_frame(_app, &_frame).unwrap();
@@ -101,75 +160,62 @@ fn update(_app: &App, _model: &mut Model, _update: Update) {
         .default_size((170., 200.))
         .resizable(false)
         .show(&_ctx, |_ui| {
-        //
-        _ui.checkbox(&mut settings.target_mouse, "Target mouse");
-
-        _ui.separator();
-
-        //
-        _ui.label("Arm arm_length - 0 to 128");
-        _ui.add(egui::Slider::new(&mut settings.arm_length, 0.001..=128.));
-
-        _ui.separator();
+         //
+         _ui.add(egui::Checkbox::new(&mut settings.target_mouse, "Target mouse"));
+         _ui.add(egui::Separator::default());
 
         //
-        _ui.label("Start to End distance - 0 to ".to_owned() + &(settings.arm_length * 2.0).to_string());
-        _ui.add(egui::Slider::new(&mut settings.start_to_end_distance, 0.001..=2.*settings.arm_length));
+        match settings.solver {
+            // Feels kinda weird that i have to "ref mut" it so the changes inside are persistent outside
+            Solver::Analytic(ref mut two_link_chain) => {
+                //
+                _ui.add(egui::Label::new("First Arm Length"));
+                _ui.add(egui::Slider::new(&mut two_link_chain.first_arm_length, 0.001..=256.).max_decimals(2));
+                _ui.add(egui::Separator::default());
 
-        _ui.separator();
+                //
+                _ui.add(egui::Label::new("Second Arm Length"));
+                _ui.add(egui::Slider::new(&mut two_link_chain.second_arm_length, 0.001..=256.).max_decimals(2));
+                _ui.add(egui::Separator::default());
 
-        //
-        _ui.label("Arm angle - 0 to 6.28 radians");
-        _ui.add(egui::Slider::new(&mut settings.arm_angle, 0.0..=2.*PI));
+                //
+                _ui.add(egui::Label::new("Base to End effector distance"));
+                _ui.add(egui::Slider::new(&mut two_link_chain.first_to_last_dist, 0.001..=(two_link_chain.first_arm_length + two_link_chain.second_arm_length)).max_decimals(2));
+                _ui.add(egui::Separator::default());
+
+                //
+                _ui.add(egui::Label::new("Arm angle"));
+                _ui.add(egui::Slider::new(&mut two_link_chain.angle, 0.0..=2.*PI).min_decimals(2));
+            }
+        };
     });
-
     // IK targeting
     // Automatic
     if settings.target_mouse {
         let mouse_pos = _app.mouse.position();
 
-        settings.start_to_end_distance = Vec2::ZERO.distance(mouse_pos);
+        match settings.solver {
+            Solver::Analytic(ref mut two_link_chain) => {
+                two_link_chain.first_to_last_dist = Vec2::ZERO.distance(mouse_pos);
+                two_link_chain.angle = mouse_pos.angle();
 
-        if settings.start_to_end_distance > 2.* settings.arm_length {
-            settings.start_to_end_distance = 2. * settings.arm_length;
+                two_link_chain.two_link_solver()
+            }
         }
-
-        // Update with the changes
-        _model.settings.points = solve_ik_simple(settings.start_to_end_distance, settings.arm_length, mouse_pos.angle());
     }
-
     // Manual 
-    else {
-        // Prevent an error when the start_to_end_distance is greater than the arm_length, making the
-        // theta_1 result in NaN.
-        // I do believe this happens because though i've changed the slider, the change only takes effect
-        // in the next frame.
-        if (settings.start_to_end_distance - 2. * settings.arm_length) > 0.0 {
-            settings.start_to_end_distance = 2. * settings.arm_length;
+    else 
+    {    
+        match settings.solver {
+            Solver::Analytic(ref mut two_link_chain) => { two_link_chain.two_link_solver() }
         }
-        
-        // Update with the changes
-        _model.settings.points = solve_ik_simple(settings.start_to_end_distance, settings.arm_length, settings.arm_angle);
     }
+
+    // Update with the changes
+    _model.settings.solver = settings.solver;
 }
 
 fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event::WindowEvent) {
     // Let egui handle things like keyboard and mouse input.
     model.egui.handle_raw_event(event);
-}
-
-// Analytic solution of a two-link kinematic chain;
-fn solve_ik_simple(distance: f32, length: f32, angle: f32) -> [Vec2; 3] {
-    // Theta_1, i believe, is the angle between the first arm and the horizontal axis
-    // ain't sure since i need to sum theta with the arm_angle
-    // Also, this is simplified because it assumes both arms have equal arm_length
-    let theta_1 = (distance / (2. * length)).acos();
-
-    // First Joint
-    let first_p = Vec2::new((theta_1 + angle).cos() * length, (theta_1 + angle).sin() * length);
-
-    // End effector || Second Joint
-    let second_p = Vec2::new(angle.cos() * distance, angle.sin() * distance);
-
-    return [Vec2::ZERO, first_p, second_p];
 }
