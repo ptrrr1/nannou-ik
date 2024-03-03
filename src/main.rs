@@ -1,67 +1,11 @@
 // The paper: Inverse Kinematics Techniques in Computer Graphics: A Survey by A. Aristidou, J.Lasenby, Y. Chrysanthou1 and A. Shamir
 // Plus a video titled Learn Inverse Kinematics the Simple Way by Benjamin Blodgett --> https://youtu.be/wgpgNLEEpeY
 // This video helped a ton
+pub mod solver;
+use crate::solver::{Solver, AnalyticTwoLink};
 
 use nannou::prelude::*;
 use nannou_egui::{self, egui::{self, Color32, Rounding, Stroke, Visuals}, Egui};
-
-#[derive(Debug, Clone, Copy)]
-enum Solver {
-    Analytic(AnalyticTwoLink),
-}
-
-#[derive(Debug, Clone, Copy)]
-struct AnalyticTwoLink {
-    angle: f32,
-    first_arm_length: f32,
-    second_arm_length: f32,
-    first_to_last_dist: f32,
-    points: [Vec2; 3],
-}
-
-impl AnalyticTwoLink {
-    fn new(angle: f32, f_len: f32, s_len: f32) -> AnalyticTwoLink {
-        AnalyticTwoLink {
-            angle: angle,
-            first_arm_length: f_len, 
-            second_arm_length: s_len, 
-            first_to_last_dist: f_len + s_len, 
-            points: [
-                Vec2::ZERO, 
-                Vec2::new(angle.cos() * f_len, angle.sin() * f_len), 
-                Vec2::new(angle.cos() * (f_len + s_len), angle.sin() * (f_len + s_len))
-            ]
-        }
-    }
-
-    fn two_link_solver(&mut self) {
-        // Prevent an error when the start_to_end_distance is greater than the arm_length, making the
-        // theta_1 result in NaN.
-        // I do believe this happens because though i've changed the slider, the change only takes effect
-        // in the next frame. Plus, it can't solve when distance is greater than sum of arm lengths
-        if self.first_to_last_dist > self.first_arm_length + self.second_arm_length {
-            self.first_to_last_dist = self.first_arm_length + self.second_arm_length;
-        } 
-        else if self.first_to_last_dist < self.first_arm_length - self.second_arm_length {
-            self.first_to_last_dist = self.first_arm_length - self.second_arm_length;
-        }
-        // Theta_1, i believe, is the angle between the first arm and angle
-        // The sum comes from the fact that "angle" is the angle between the horizontal axis and the end effector
-        // Law of cosines
-        let numerator = self.first_arm_length.powi(2) + self.first_to_last_dist.powi(2) - self.second_arm_length.powi(2);
-        let denominator = 2. * self.first_arm_length * self.first_to_last_dist;
-        let theta_1 = (numerator / denominator).acos();
-        println!("{:?} / {:?}", numerator, denominator);
-
-        // First Joint
-        let first_p = Vec2::new((theta_1 + self.angle).cos() * self.first_arm_length, (theta_1 + self.angle).sin() * self.first_arm_length);
-
-        // End effector
-        let second_p = Vec2::new(self.angle.cos() * self.first_to_last_dist, self.angle.sin() * self.first_to_last_dist);
-
-        self.points = [Vec2::ZERO, first_p, second_p]
-    }
-}
 
 struct Model {
     _window_id: WindowId,
@@ -182,7 +126,7 @@ fn update(_app: &App, _model: &mut Model, _update: Update) {
 
                 //
                 _ui.add(egui::Label::new("Arm angle"));
-                _ui.add(egui::Slider::new(&mut two_link_chain.angle, 0.0..=2.*PI).min_decimals(2));
+                _ui.drag_angle(&mut two_link_chain.angle);
             }
         };
     });
