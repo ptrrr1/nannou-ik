@@ -41,9 +41,9 @@ impl AnalyticTwoLink {
             // When out of range further than the sum
             self.first_to_last_dist = self.first_arm_length + self.second_arm_length;
         } 
-        else if self.first_to_last_dist < self.first_arm_length - self.second_arm_length && self.first_arm_length > self.second_arm_length { 
+        else if self.first_to_last_dist < (self.first_arm_length - self.second_arm_length).abs() { 
             // When out of range closer to base (Vec2::ZERO)
-            self.first_to_last_dist = self.first_arm_length - self.second_arm_length;
+            self.first_to_last_dist = (self.first_arm_length - self.second_arm_length).abs();
         }
         // Theta_1, i believe, is the angle between the first arm and angle
         // The sum comes from the fact that "angle" is the angle between the horizontal axis and the end effector
@@ -51,7 +51,6 @@ impl AnalyticTwoLink {
         let numerator = self.first_arm_length.powi(2) + self.first_to_last_dist.powi(2) - self.second_arm_length.powi(2);
         let denominator = 2. * self.first_arm_length * self.first_to_last_dist;
         let theta_1 = (numerator / denominator).acos();
-        // WARNING: can't reach the base when first_arm_lenth <= second_arm_length
 
         // First Joint
         let first_p = Vec2::new((theta_1 + self.angle).cos() * self.first_arm_length, (theta_1 + self.angle).sin() * self.first_arm_length);

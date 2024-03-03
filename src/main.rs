@@ -65,10 +65,18 @@ fn view(_app: &App, _model: &Model, _frame: Frame) {
     match &_model.settings.solver {
         Solver::Analytic(two_link_chain) => {
             draw.polyline()
-            .weight(8.0)
-            .color(PLUM)
-            .points(two_link_chain.points);
+                .weight(8.0)
+                .color(PLUM)
+                .points(two_link_chain.points);
+
+            for point in two_link_chain.points {
+                draw.ellipse()
+                    .color(RED)
+                    .radius(8.)
+                    .xy(point);
+
             }
+        }
     };
 
     // Draw to frame
