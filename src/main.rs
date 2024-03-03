@@ -129,7 +129,9 @@ fn update(_app: &App, _model: &mut Model, _update: Update) {
 
                 //
                 _ui.add(egui::Label::new("Base to End effector distance"));
-                _ui.add(egui::Slider::new(&mut two_link_chain.first_to_last_dist, 0.001..=(two_link_chain.first_arm_length + two_link_chain.second_arm_length)).max_decimals(2));
+                let min = (two_link_chain.first_arm_length - two_link_chain.second_arm_length).abs() + 0.01; // 0.01 is so it doesn't crash
+                let max = two_link_chain.first_arm_length + two_link_chain.second_arm_length;
+                _ui.add(egui::Slider::new(&mut two_link_chain.first_to_last_dist, min..=max).max_decimals(2));
                 _ui.add(egui::Separator::default());
 
                 //
