@@ -48,11 +48,8 @@ impl AnalyticTwoLink {
         // Theta_1, i believe, is the angle between the first arm and angle
         // The sum comes from the fact that "angle" is the angle between the horizontal axis and the end effector
         // Law of cosines
-        let mut numerator = self.first_arm_length.powi(2) + self.first_to_last_dist.powi(2) - self.second_arm_length.powi(2);
+        let numerator = self.first_arm_length.powi(2) + self.first_to_last_dist.powi(2) - self.second_arm_length.powi(2);
         let denominator = 2. * self.first_arm_length * self.first_to_last_dist;
-        while numerator.abs() > denominator {
-             numerator = denominator - numerator;
-        }
         let theta_1 = (numerator / denominator).acos();
         println!("{:?} / {:?}", numerator, denominator);
 
