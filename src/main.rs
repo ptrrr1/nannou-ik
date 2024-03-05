@@ -47,7 +47,7 @@ fn model(_app: &App) -> Model {
         target_mouse: false,
     };
 
-    Model { 
+    Model {
         _window_id,
         clear_color,
         egui,
@@ -57,7 +57,7 @@ fn model(_app: &App) -> Model {
 
 fn view(_app: &App, _model: &Model, _frame: Frame) {
     let draw = _app.draw();
-    
+
     // Background color
     draw.background().color(_model.clear_color);
 
@@ -95,15 +95,15 @@ fn update(_app: &App, _model: &mut Model, _update: Update) {
     _egui.set_elapsed_time(_update.since_start);
 
     let _ctx = _egui.begin_frame();
-    _ctx.set_visuals( Visuals { 
-        dark_mode: true, 
-        window_rounding: Rounding { nw: 0., ne: 0., sw: 0., se: 0. }, 
+    _ctx.set_visuals( Visuals {
+        dark_mode: true,
+        window_rounding: Rounding { nw: 0., ne: 0., sw: 0., se: 0. },
         window_fill: Color32::from_rgb(0, 0, 0),
         window_stroke: Stroke::new(1., Color32::WHITE),
         slider_trailing_fill: true,
-        ..Default::default() 
+        ..Default::default()
     });
-    
+
     // Creates new UI of type Window
     egui::Window::new("IK Arm Settings")
         .default_size((170., 200.))
@@ -154,9 +154,9 @@ fn update(_app: &App, _model: &mut Model, _update: Update) {
             }
         }
     }
-    // Manual 
-    else 
-    {    
+    // Manual
+    else
+    {
         match settings.solver {
             Solver::Analytic(ref mut two_link_chain) => { two_link_chain.two_link_solver() }
         }

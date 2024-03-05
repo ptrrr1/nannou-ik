@@ -1,5 +1,11 @@
 use nannou::prelude::*;
 
+/*
+* TODO: add a Three link analytic solver
+* TODO: add a CCD solver (Cyclic Coordinate Descent)
+* TODO: add a FABRIK solver (Foward and Bakcwards reaching IK)
+*/
+
 #[derive(Debug, Clone, Copy)]
 pub enum Solver {
     Analytic(AnalyticTwoLink),
@@ -20,12 +26,12 @@ impl AnalyticTwoLink {
     pub fn new(angle: f32, f_len: f32, s_len: f32) -> AnalyticTwoLink {
         AnalyticTwoLink {
             angle: angle,
-            first_arm_length: f_len, 
-            second_arm_length: s_len, 
-            first_to_last_dist: f_len + s_len, 
+            first_arm_length: f_len,
+            second_arm_length: s_len,
+            first_to_last_dist: f_len + s_len,
             points: [
-                Vec2::ZERO, 
-                Vec2::new(angle.cos() * f_len, angle.sin() * f_len), 
+                Vec2::ZERO,
+                Vec2::new(angle.cos() * f_len, angle.sin() * f_len),
                 Vec2::new(angle.cos() * (f_len + s_len), angle.sin() * (f_len + s_len))
             ]
         }
@@ -37,11 +43,11 @@ impl AnalyticTwoLink {
         // theta_1 result in NaN.
         // I do believe this happens because though i've changed the slider, the change only takes effect
         // in the next frame. Plus, it can't solve when distance is greater than sum of arm lengths
-        if self.first_to_last_dist > self.first_arm_length + self.second_arm_length { 
+        if self.first_to_last_dist > self.first_arm_length + self.second_arm_length {
             // When out of range further than the sum
             self.first_to_last_dist = self.first_arm_length + self.second_arm_length;
-        } 
-        else if self.first_to_last_dist < (self.first_arm_length - self.second_arm_length).abs() { 
+        }
+        else if self.first_to_last_dist < (self.first_arm_length - self.second_arm_length).abs() {
             // When out of range closer to base (Vec2::ZERO)
             self.first_to_last_dist = (self.first_arm_length - self.second_arm_length).abs();
         }
